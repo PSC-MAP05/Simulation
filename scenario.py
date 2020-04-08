@@ -4,6 +4,7 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
+from scipy.special import ndtr
 class scenario:
     def __init__(self, n_utilisateurs, n_periodes, n_plat):
 
@@ -28,10 +29,11 @@ class scenario:
         # je suppose que lambda est tiré selon une loi uniforme entre des bornes variables
         # pour que lambda soit plus grand à 22H qu'à 20H.
         # OOK
-        a = -0.1*periode*(periode-24)
-        b= 5
+        a = (-abs(periode-12)+ 12)*10
+        b= 1
 
         pam_lambd = np.random.uniform(low=a , high=a + b)
+
         return pam_lambd
 
 
@@ -50,31 +52,44 @@ class scenario:
 
     def argmaxCritere(self,propension, tab_prix, periode):
         argmax = -1
-        maximu = -1
+        maximu = -500
         for plat in range(len(tab_prix)):
-            if (propension[plat] - tab_prix[plat])/tab_prix[plat] > maximu:
+            if (propension[plat] - tab_prix[plat])/tab_prix[plat] > maximu and (propension[plat] - tab_prix[plat])>0 :
                 argmax = plat
-                maximu = propension[plat]-tab_prix[plat]
+                maximu = (propension[plat]-tab_prix[plat])/tab_prix[plat]
 
         return argmax
 
+    #pour savoir si riche ou pauvre
+
 
     def f(self,i, n):
-        """if i <= n / 3:
+        if i <= n / 3:
             return 0, 0, n/3
         elif i >= 2 * n / 3:
             return 2, 2*n/3,n
         else:
-            return 1, n/3, 2*n/3"""
+            return 1, n/3, 2*n/3
+            """
         k = n/self.n_plat
         for i in range(0,n,int(n/self.n_plat)):
-            return i*int(self.n_plat/n), i, i + int(n/self.n_plat)
+            return i*int(self.n_plat/n), i, i + int(n/self.n_plat) """
+    #pour avoir  le gout?
 
     def g(self,i, e_low, e_high,p):
         i = i-e_low
         e_high = e_high - e_low
         e_low = 0
         resultat = 0
+        k = e_high / self.n_plat
+        n = self.n_utilisateurs
+
+        if  (int(i /(int(e_high / self.n_plat))) == p ):
+            return 5
+        else:
+            return np.random.uniform(1,4)
+
+        """
         if i <= e_high / 3:
             resultat = 0
         elif i >= 2 * e_high / 3:
@@ -82,7 +97,7 @@ class scenario:
         else:
             resultat = 1
         return resultat
-
+"""
         """   if p ==1:
                     resultat+=1
                     resultat %= 3
@@ -95,7 +110,7 @@ class scenario:
     def z(self,classe, gout_plat):
 
 
-        return classe + gout_plat
+        return 0.1*(classe+1) *(gout_plat+1)
 
     """def remplir_prix(self,tab_prix,jr):
         for i in range(len(tab_prix[0])):
@@ -124,6 +139,7 @@ class scenario:
         self.tab_consom_potentiel = np.array(self.tab_consom_potentiel)
         self.tab_consom_potentiel = np.delete(self.tab_consom_potentiel, temp)
         # ici, on a la liste actualisée de tous les individus susceptibles de consommer
+        tab_notes = []
         for i in temp:
 
             propension = [0 for i in range(self.n_plat)]
@@ -131,11 +147,15 @@ class scenario:
             # maintenant on peut découper notre population selon la classe sociale et le gout pour chaque produit. L'attributino se fait en fonction de l'indice de la personne
             classe, extremite_low, extremite_high = self.f(i, self.n_utilisateurs)
             gout_plat = self.g(i, extremite_low, extremite_high, p)
-            for p in range(self.n_plat):
-                gout_plat = self.g(i, extremite_low, extremite_high, p)
-                propension[p] = np.random.exponential(scale=1 / (self.z(classe, gout_plat + 0.5)))
+            for plat in range(self.n_plat):
+                gout_plat = self.g(i, extremite_low, extremite_high, plat)
+                propension[plat] = np.random.exponential(scale=(self.z(classe, gout_plat + 0.5)))
+
             plat = self.argmaxCritere(propension, liste_prix, per)
-            tab_ventes[plat] += 1
+
+            if plat>=0:
+                tab_ventes[plat] += 1
+                tab_notes.append([temp, plat, gout_plat])
 
                 # on a 2 possibilités: il achete le plat qui maximise un critère, ou bien il n'achète pas
 
@@ -144,7 +164,8 @@ class scenario:
         # tab_plot.append(tab_ventes[2][4])
 
 
-        return tab_ventes
+        return tab_ventes, tab_notes
+
     def vente_jour(self,tab_prix):
 
 
@@ -176,7 +197,7 @@ class scenario:
                     gout_plat = g(i,extremite_low,extremite_high,p)
                     for p in range(self.n_plat):
                         gout_plat = self.g(i, extremite_low, extremite_high, p)
-                        propension[p] = np.random.exponential(scale=1/(self.z(classe, gout_plat+0.5)))
+                        propension[p] = np.random.exponential(scale=(self.z(classe, gout_plat+0.5)))
                     plat = self.argmaxCritere(propension, tab_prix, per)
                     tab_ventes[plat][per] += 1
 
